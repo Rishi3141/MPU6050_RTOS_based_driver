@@ -381,7 +381,7 @@ int main(void)
 
     vTaskStartScheduler();
     /* If you reach here → scheduler FAILED */
-    // Normally → code after vTaskStartScheduler() is NEVER executed
+    // Normally,code after vTaskStartScheduler() is NEVER executed
     // Only executed if scheduler fails to start
     while(1);
 
