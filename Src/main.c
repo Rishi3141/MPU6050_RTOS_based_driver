@@ -1,4 +1,5 @@
-
+// Created By : Rishikesh Malkar
+// Date : 21 May 2026
 #include <stdint.h>
 #include "stm32f411.h"
 
@@ -11,6 +12,7 @@
 //#include "portable.h"
 
 #include "MPU6050.h"
+#include "RTOS_MPU6050_driver.h"
 
 
 
@@ -18,94 +20,20 @@ mpu6050_Regdef mpu1 ;
 QueueHandle_t rawdata_queue ;
 SemaphoreHandle_t bin_semph1 ;
 SemaphoreHandle_t bin_calib_semph2;
+
 int sqr(int16_t num);
 int mod(int num);
 
-float calculate_accel(int16_t, int);
-
-
-
-typedef struct
-{
- __vo int16_t accel_X;
- __vo int16_t accel_Y;
- __vo int16_t accel_Z;
- __vo int16_t gyro_X;
- __vo int16_t gyro_Y;
- __vo int16_t gyro_Z;
- __vo int16_t temp ;
-
-
-}mpu_rawdata_t;
-
-
-
-typedef struct
-{
-	float accel_ax;
-	float accel_ay;
-	float accel_az;
-	float vel_ax ;
-	float vel_ay ;
-	float vel_az ;
-	float degrees_sec_gx  ;
-	float degrees_sec_gy  ;
-	float degrees_sec_gz ;
-	float degrees_gx  ;
-	float degrees_gy ;
-	float degrees_gz  ;
-}mpu_processed_data;
-
-mpu_processed_data global_processed_data ;
-
-typedef struct
-{
-	 int64_t ax ;
-     int64_t ay ;
-	 int64_t az ;
-	 int64_t gx ;
-	 int64_t gy ;
-	 int64_t gz ;
-
-}accumulated_values;
-
-typedef struct
-{
-	__vo int mean_ax ;
-	__vo int mean_ay ;
-	__vo int mean_az ;
-	__vo int mean_gx ;
-	__vo int mean_gy ;
-	__vo int mean_gz ;
-	__vo int var_ax ;
-	__vo int var_ay ;
-	__vo int var_az ;
-	__vo int var_gx ;
-	__vo int var_gy ;
-	__vo int var_gz ;
-	__vo int thresh_ax ;  // treshold = 3* Standard deviation
-	__vo int thresh_ay ;
-	__vo int thresh_az ;
-	__vo int thresh_gx ;
-	__vo int thresh_gy ;
-	__vo int thresh_gz ;
-
-
-
-}mpu_calibration_stats_t;
-
-mpu_calibration_stats_t mpu_calib1 ;
-
-
-
 void process_data(mpu_rawdata_t *data ,mpu_calibration_stats_t *stats, uint8_t level );
-//void TIM2_IRQHandler(void);
 void control_led_init(void);
-void start_TIM2(void);
+
 
 void task_mpu_acquire(void *params);
 void task_process(void *params);
 void task_act(void *params);
+
+
+
 
 void task_act(void *params)
 {
@@ -115,15 +43,15 @@ void task_act(void *params)
 
 
 
+    // TEST LINES. Replace with the actual logic
+	if(mod(global_processed_data.degrees_gz) > 90 )
+		{
+			GPIO_WritePin(GPIOD, 13,SET);
 
-		        if(mod(global_processed_data.degrees_gz) > 90 )
-		      		        {
-		      		        	GPIO_WritePin(GPIOD, 13,SET);
+		}
 
-		      		        }
-
-		      		        else
-		      		        	GPIO_WritePin(GPIOD, 13,RESET);
+		else
+			GPIO_WritePin(GPIOD, 13,RESET);
 
 
 
@@ -143,7 +71,7 @@ void task_mpu_acquire(void *params)
 
     while(1)
     {
-     //   GPIO_Togglepin(GPIOD, 12);
+
 
         ACCEL_RECEIVE(&mpu1, 1);
         GYRO_RECEIVE(&mpu1, 1);
@@ -163,21 +91,14 @@ void task_mpu_acquire(void *params)
 
 
         vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(10));  // Run a task every 10ms
-       // vTaskDelay : Blocks the task for specified number of ticks
-      // pdMS_TO_TICKS : converts milliseconds to ticks
+
     }
 }
 
 void task_process(void *params)
 {
-//	TickType_t lastWakeTime; // Code outside infinite loop runs ONLY ONCE
-//	lastWakeTime = xTaskGetTickCount(); // fetch the tick count at the instance this function is called.
+
     mpu_rawdata_t mpu_data_pr ;
-    mpu_processed_data final_data ;
-    int accel_val = 0 ;
-    int gyro_val = 0 ;
-    int count = 0 ;
-    float degrees = 0 ;
 
     xSemaphoreTake(bin_calib_semph2,portMAX_DELAY); // Start the processing task after calibration data is available
 
@@ -190,8 +111,7 @@ void task_process(void *params)
         process_data(&mpu_data_pr, &mpu_calib1,4); // only process gyro readings
 
 
-  //      vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(10));
-     //   vTaskDelay(pdMS_TO_TICKS(1000));  // 1 sec
+
     }
 }
 
@@ -343,7 +263,7 @@ void control_led_init(void)
 int main(void)
 {
 
-//	clock_set_HSE();
+
 	control_led_init();
 
 	mpu1.which_I2C = I2C1 ;
@@ -361,23 +281,19 @@ int main(void)
 
 
     if(xTaskCreate(task_mpu_acquire, "acquisition", 256, NULL, 5, NULL) != pdPASS)  // pdPASS : indicates that task has been created successfully
-    {
     	while(1); // task creation failed
-    }
+
     if(xTaskCreate(task_process, "process", 256, NULL, 4, NULL) != pdPASS)
-    {
     	while(1);
-    }
+
 
     if(xTaskCreate(task_calibrate,"calibrate",512,NULL,4,NULL) != pdPASS)
-    {
     	while(1);
-    }
+
 
     if(xTaskCreate(task_act, "act", 256, NULL, 3, NULL) != pdPASS)
-	{
 		while(1);
-	}
+
 
     vTaskStartScheduler();
     /* If you reach here → scheduler FAILED */
