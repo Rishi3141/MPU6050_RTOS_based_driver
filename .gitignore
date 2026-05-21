@@ -1,0 +1,15 @@
+# STM32CubeIDE build folders
+Debug/
+Release/
+
+# STM32CubeIDE settings
+.settings/
+*.launch
+
+# Build/generated files
+*.o
+*.d
+*.su
+*.map
+*.elf
+*.bin
