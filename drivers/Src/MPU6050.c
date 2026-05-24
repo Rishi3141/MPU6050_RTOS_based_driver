@@ -22,7 +22,7 @@ void delay_2(void) // 187ms  required : 0.01ms
 	{
 		for(uint32_t i = 0 ; i < (13/2) ; i++)
 		{
-
+               ;
 		}
 	}
 
@@ -432,6 +432,21 @@ void GYRO_RECEIVE(mpu6050_Regdef* mpu, uint8_t state)
 		mpu->gyroX_val = ((uint16_t)temp_val[0] << 8 ) | ((uint16_t)temp_val[1]);
 		mpu->gyroY_val = ((uint16_t)temp_val[2] << 8 ) | ((uint16_t)temp_val[3]);
 		mpu->gyroZ_val = ((uint16_t)temp_val[4] << 8 ) | ((uint16_t)temp_val[5]);
+
+}
+
+void TEMP_RECEIVE(mpu6050_Regdef* mpu, uint8_t state)
+{
+	    uint8_t temp_val[2];
+		while(I2C_instant.TxRxState != I2C_READY);
+		uint8_t reg_addr = TEMP_OUT_H  ;//0x43
+
+		while(I2C_SendDataIT(&I2C_instant,&reg_addr, 1, mpu->dev_addr, 1) != I2C_READY ); // Set ptr address as ACCEL_XOUT_H
+		while(I2C_ReceiveDataIT(&I2C_instant,temp_val,2,mpu->dev_addr,0) != I2C_READY);
+		while(I2C_instant.TxRxState != I2C_READY); // makes sure that data[1] is written first
+
+		mpu->temp_val = ((uint16_t)temp_val[0] << 8 ) | ((uint16_t)temp_val[1]);
+
 
 }
 

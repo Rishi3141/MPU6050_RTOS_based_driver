@@ -75,6 +75,7 @@ void task_mpu_acquire(void *params)
 
         ACCEL_RECEIVE(&mpu1, 1);
         GYRO_RECEIVE(&mpu1, 1);
+        TEMP_RECEIVE(&mpu1, 1);
 
         mpu_data_acq.accel_X = mpu1.accelX_val ;
         mpu_data_acq.accel_Y = mpu1.accelY_val ;
@@ -82,6 +83,7 @@ void task_mpu_acquire(void *params)
         mpu_data_acq.gyro_X = mpu1.gyroX_val ;
         mpu_data_acq.gyro_Y = mpu1.gyroY_val ;
         mpu_data_acq.gyro_Z = mpu1.gyroZ_val ;
+        mpu_data_acq.temp   = mpu1.temp_val ;
 
 
         xQueueSend(rawdata_queue, &mpu_data_acq , portMAX_DELAY);
@@ -101,16 +103,26 @@ void task_process(void *params)
     mpu_rawdata_t mpu_data_pr ;
 
     xSemaphoreTake(bin_calib_semph2,portMAX_DELAY); // Start the processing task after calibration data is available
-
+    uint8_t count_temp = 0 ;
     while(1)
     {
 
 
+
+
+
         xQueueReceive(rawdata_queue,&mpu_data_pr, portMAX_DELAY);
 
-        process_data(&mpu_data_pr, &mpu_calib1,4); // only process gyro readings
+        if(count_temp == 100)
+        {
+        	process_data(&mpu_data_pr, &mpu_calib1,4);
+        	count_temp = 0 ;
+        }
 
+        else
+            process_data(&mpu_data_pr, &mpu_calib1,0);
 
+        count_temp++ ;
 
     }
 }
@@ -183,6 +195,8 @@ void task_calibrate(void* params)
         	mpu_calib1.mean_gx = acc_struct1.gx / mean_denominator;
         	mpu_calib1.mean_gy = acc_struct1.gy / mean_denominator;
         	mpu_calib1.mean_gz = acc_struct1.gz / mean_denominator;
+
+     //   	mpu_calib1.mean_az = mpu_calib1.mean_az - 16384 ; // to exclude 1g due to gravity to be part of mean calculation
 		    acc_struct1.ax = 0 ;
 		    acc_struct1.ay = 0;
 		    acc_struct1.az = 0 ;
@@ -198,7 +212,7 @@ void task_calibrate(void* params)
         	// Use mean from above to calculate (ax - ux)^2 (summation term in mean)
            acc_struct1.ax  += sqr(mpu_data_cal.accel_X - mpu_calib1.mean_ax);
 		   acc_struct1.ay += sqr(mpu_data_cal.accel_Y - mpu_calib1.mean_ay) ;
-		   acc_struct1.az += sqr(mpu_data_cal.accel_Z - mpu_calib1.mean_az) ;
+		   acc_struct1.az += sqr(mpu_data_cal.accel_Z  - mpu_calib1.mean_az) ;
 		   acc_struct1.gx += sqr(mpu_data_cal.gyro_X - mpu_calib1.mean_gx) ;
 		   acc_struct1.gy += sqr(mpu_data_cal.gyro_Y - mpu_calib1.mean_gy) ;
 		   acc_struct1.gz += sqr(mpu_data_cal.gyro_Z - mpu_calib1.mean_gz);
@@ -315,52 +329,72 @@ void process_data(mpu_rawdata_t *data ,mpu_calibration_stats_t *stats, uint8_t l
 	adjusted_data = data->gyro_X - stats->mean_gx ;
 	if( mod(adjusted_data) > stats->thresh_gx)
 	{
-		global_processed_data.degrees_sec_gx = adjusted_data/131.0 ;  // 1 degree means reading of 131
-		global_processed_data.degrees_gx += global_processed_data.degrees_sec_gx*0.01;
+		global_processed_data.degrees_sec_gx = adjusted_data/GYRO_RES ; // per degree gyro increments by 131
+		global_processed_data.degrees_gx += global_processed_data.degrees_sec_gx*TICK_TIME_SEC;
 
 	}
-	  if (level > 0)
-	  {
+
 
 	adjusted_data = data->gyro_Y - stats->mean_gy ;
 	if( mod(adjusted_data) > stats->thresh_gy)
 	{
-		global_processed_data.degrees_sec_gy = adjusted_data/131.0 ;  // 1 degree means reading of 131
-		global_processed_data.degrees_gy += global_processed_data.degrees_sec_gy*0.01;
+		global_processed_data.degrees_sec_gy = adjusted_data/GYRO_RES ;
+		global_processed_data.degrees_gy += global_processed_data.degrees_sec_gy*TICK_TIME_SEC;
 
 	}
 
     adjusted_data = data->gyro_Z - stats->mean_gz ;
 	if( mod(adjusted_data) > stats->thresh_gz)
 	{
-		global_processed_data.degrees_sec_gz = adjusted_data/131.0 ;  // 1 degree means reading of 131
-		global_processed_data.degrees_gz += global_processed_data.degrees_sec_gz*0.01;
+		global_processed_data.degrees_sec_gz = adjusted_data/GYRO_RES ;
+		global_processed_data.degrees_gz += global_processed_data.degrees_sec_gz*TICK_TIME_SEC;
 
 	}
 
 	adjusted_data = data->accel_X - stats->mean_ax ;
 	if( mod(adjusted_data) > stats->thresh_ax)
 	{
-		global_processed_data.accel_ax = adjusted_data/16384.0 ;  // 1 degree means reading of 131
-		global_processed_data.vel_ax += global_processed_data.accel_ax*0.01;
+		global_processed_data.accel_ax = adjusted_data/ACCEL_RES ;
+		global_processed_data.vel_ax += global_processed_data.accel_ax*TICK_TIME_SEC;
 
 	}
 
 	adjusted_data = data->accel_Y - stats->mean_ay ;
 	if( mod(adjusted_data) > stats->thresh_ay)
 	{
-		global_processed_data.accel_ay = adjusted_data/16384.0 ;  // 1 degree means reading of 131
-		global_processed_data.vel_ay += global_processed_data.accel_ay*0.01;
+		global_processed_data.accel_ay = adjusted_data/ACCEL_RES ;
+		global_processed_data.vel_ay += global_processed_data.accel_ay*TICK_TIME_SEC;
 
 	}
 
 	adjusted_data = data->accel_Z - stats->mean_az ;
 	if( mod(adjusted_data) > stats->thresh_az)
 	{
-		global_processed_data.accel_az = adjusted_data/16384.0 ;  // 1 degree means reading of 131
-		global_processed_data.vel_az += global_processed_data.accel_az*0.01;
 
+		global_processed_data.accel_az = (adjusted_data/ACCEL_RES)  ; // adding 1 to account for acceleration die to gravity
+		global_processed_data.vel_az += global_processed_data.accel_az*TICK_TIME_SEC;
+		// with
 	}
+
+
+
+
+  if (level > 3)
+	  {
+
+	float temp_degrees ;
+	uint16_t sign ;
+	uint16_t magnitude ;
+
+	sign = data->temp & 0x8000 ;
+	magnitude = data->temp & 0x7FFF ;
+
+	temp_degrees =  (magnitude/340.0) + 36.53 ;
+	if(sign == 1)
+		temp_degrees = temp_degrees*(-1.0);
+
+	global_processed_data.temp_degrees = temp_degrees ;
+	// temp. in Degrees = (TEMP_OUT reg value (signed))/340 + 36.53
 
   }
 

@@ -100,7 +100,7 @@ typedef struct
  int16_t gyroX_val ;
  int16_t gyroY_val ;
  int16_t gyroZ_val ;
- int16_t temp_val ;
+ uint16_t temp_val ;
 
 }mpu6050_Regdef;
 
@@ -121,6 +121,7 @@ void ACCEL_Config(mpu6050_Regdef* mpu, uint8_t state);
 void GYRO_Config(mpu6050_Regdef* mpu, uint8_t state);
 void ACCEL_RECEIVE(mpu6050_Regdef* mpu, uint8_t axis);
 void GYRO_RECEIVE(mpu6050_Regdef* mpu, uint8_t state);
+void TEMP_RECEIVE(mpu6050_Regdef* mpu, uint8_t state);
 
 void I2C_ApplicationEventCallback(I2C_Handle_t *pI2CHandle,uint8_t AppEv);
 

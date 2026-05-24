@@ -10,6 +10,9 @@
 
 
 #define ACQ_10ms 10
+#define TICK_TIME_SEC 0.01
+#define ACCEL_RES 16384.0
+#define GYRO_RES 131.0
 
 
 
@@ -21,7 +24,7 @@ typedef struct
  __vo int16_t gyro_X;
  __vo int16_t gyro_Y;
  __vo int16_t gyro_Z;
- __vo int16_t temp ;
+ __vo uint16_t temp ;
 
 
 }mpu_rawdata_t;
@@ -42,6 +45,7 @@ typedef struct
 	float degrees_gx  ;
 	float degrees_gy ;
 	float degrees_gz  ;
+	float temp_degrees ;
 }mpu_processed_data;  // This struct will store final calculations which user can use
 
 mpu_processed_data global_processed_data ;
