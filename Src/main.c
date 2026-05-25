@@ -42,20 +42,14 @@ void task_act(void *params)
 	{
 
 
-
-    // TEST LINES. Replace with the actual logic
-	if(mod(global_processed_data.degrees_gz) > 90 )
-		{
-			GPIO_WritePin(GPIOD, 13,SET);
-
-		}
-
-		else
-			GPIO_WritePin(GPIOD, 13,RESET);
+       xSemaphoreTake(bin_semph1,portMAX_DELAY);
 
 
-
-
+     // TEST LINES. Replace with the actual logic
+			if(global_processed_data.degrees_gx > ANG_X_TRIG)
+				GPIO_WritePin(GPIOD, 13,SET);
+			else
+				GPIO_WritePin(GPIOD, 13,RESET);
 
 	}
 
@@ -108,9 +102,6 @@ void task_process(void *params)
     {
 
 
-
-
-
         xQueueReceive(rawdata_queue,&mpu_data_pr, portMAX_DELAY);
 
         if(count_temp == 100)
@@ -121,6 +112,11 @@ void task_process(void *params)
 
         else
             process_data(&mpu_data_pr, &mpu_calib1,0);
+
+
+
+		xSemaphoreGive(bin_semph1);
+
 
         count_temp++ ;
 
@@ -288,7 +284,7 @@ int main(void)
 
 	rawdata_queue = xQueueCreate(6,sizeof(mpu_rawdata_t));
 	bin_semph1 = xSemaphoreCreateBinary(); // from task_process to task_act
-	bin_calib_semph2 = xSemaphoreCreateBinary();
+	bin_calib_semph2 = xSemaphoreCreateBinary(); // to signal completion of calibration to processing task
  // start_TIM2();
 
 
@@ -305,7 +301,7 @@ int main(void)
     	while(1);
 
 
-    if(xTaskCreate(task_act, "act", 256, NULL, 3, NULL) != pdPASS)
+    if(xTaskCreate(task_act, "act", 256, NULL, 5, NULL) != pdPASS)
 		while(1);
 
 
@@ -373,7 +369,7 @@ void process_data(mpu_rawdata_t *data ,mpu_calibration_stats_t *stats, uint8_t l
 
 		global_processed_data.accel_az = (adjusted_data/ACCEL_RES)  ; // adding 1 to account for acceleration die to gravity
 		global_processed_data.vel_az += global_processed_data.accel_az*TICK_TIME_SEC;
-		// with
+
 	}
 
 
@@ -390,7 +386,7 @@ void process_data(mpu_rawdata_t *data ,mpu_calibration_stats_t *stats, uint8_t l
 	magnitude = data->temp & 0x7FFF ;
 
 	temp_degrees =  (magnitude/340.0) + 36.53 ;
-	if(sign == 1)
+	if(sign)
 		temp_degrees = temp_degrees*(-1.0);
 
 	global_processed_data.temp_degrees = temp_degrees ;

@@ -15,6 +15,23 @@
 #define GYRO_RES 131.0
 
 
+// Thresholds for task_act, user should set according to their requirement
+#define ACC_X_TRIG 1.2
+#define ACC_Y_TRIG 1.2
+#define ACC_Z_TRIG 1.2
+#define VEL_X_TRIG 2.0
+#define VEL_Y_TRIG 2.0
+#define VEL_Z_TRIG 2.0
+#define ANG_VEL_X_TRIG 150.0
+#define ANG_VEL_Y_TRIG 150.0
+#define ANG_VEL_Z_TRIG 150.0
+#define ANG_X_TRIG 90.0
+#define ANG_Y_TRIG 90.0
+#define ANG_Z_TRIG 90.0
+
+
+
+
 
 typedef struct
 {
@@ -48,7 +65,7 @@ typedef struct
 	float temp_degrees ;
 }mpu_processed_data;  // This struct will store final calculations which user can use
 
-mpu_processed_data global_processed_data ;
+mpu_processed_data global_processed_data ;  // Use this global variable to access final calculated readings
 
 
 typedef struct
