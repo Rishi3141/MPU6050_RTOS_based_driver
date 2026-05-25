@@ -28,9 +28,9 @@
 
 ## Project Structure
 
-Src/        -> Application tasks and main logic
-drivers/    -> I2C, GPIO and MPU6050 drivers
-Startup/    -> Startup files and linker scripts
+- Src/        -> Application tasks and main logic
+- drivers/    -> I2C, GPIO and MPU6050 drivers
+- Startup/    -> Startup files and linker scripts
 
 
 ## Build Instructions
